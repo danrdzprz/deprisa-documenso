@@ -11,6 +11,7 @@ import {
   apiV1RateLimit,
   apiV2RateLimit,
   fileUploadRateLimit,
+  signatureSessionRateLimit,
 } from '@documenso/lib/server-only/rate-limit/rate-limits';
 import { TelemetryClient } from '@documenso/lib/server-only/telemetry/telemetry-client';
 import { migrateDeletedAccountServiceAccount } from '@documenso/lib/server-only/user/service-accounts/deleted-account';
@@ -28,6 +29,7 @@ import type { Logger } from 'pino';
 import { aiRoute } from './api/ai/route';
 import { downloadRoute } from './api/download/download';
 import { filesRoute } from './api/files/files';
+import { signatureSessionRoute } from './api/signature-session/signature-session';
 import { type AppContext, appContext } from './context';
 import { csrfMiddleware } from './csrf-middleware';
 import { appMiddleware } from './middleware';
@@ -35,6 +37,7 @@ import { securityHeadersMiddleware } from './security-headers';
 import { openApiTrpcServerHandler } from './trpc/hono-trpc-open-api';
 import { reactRouterTrpcServer } from './trpc/hono-trpc-remix';
 
+export { attachSignatureSessionSocket } from './api/signature-session/signature-session.socket';
 // Re-export so the rollup build (entry: server/router.ts) bundles
 // load-context.ts. server/main.js imports getLoadContext from the rolled-up
 // output to wire it into the React Router adapter.
@@ -60,6 +63,7 @@ const apiV2RateLimitMiddleware = createRateLimitMiddleware(apiV2RateLimit);
 const aiRateLimitMiddleware = createRateLimitMiddleware(aiRateLimit);
 const trpcRateLimitMiddleware = createRateLimitMiddleware(apiTrpcRateLimit);
 const fileRateLimitMiddleware = createRateLimitMiddleware(fileUploadRateLimit);
+const signatureSessionRateLimitMiddleware = createRateLimitMiddleware(signatureSessionRateLimit);
 
 /**
  * Attach session and context to requests.
@@ -105,6 +109,7 @@ app.use('/api/v2/*', csrfMiddleware);
 app.use('/api/v2-beta/*', csrfMiddleware);
 app.use('/api/files/*', csrfMiddleware);
 app.use('/api/ai/*', csrfMiddleware);
+app.use('/api/signature-session/*', csrfMiddleware);
 
 // Embed sessions are signing-only. `/api/files` instead ignores them per route
 // (`getOptionalNonEmbedSession`) so embedded authoring on a host that also ran
@@ -125,6 +130,10 @@ app.route('/api/auth', auth);
 // Files route.
 app.use('/api/files/upload-pdf', fileRateLimitMiddleware);
 app.route('/api/files', filesRoute);
+
+// Signature session route, relays a signature drawn on a touch device.
+app.use('/api/signature-session/*', signatureSessionRateLimitMiddleware);
+app.route('/api/signature-session', signatureSessionRoute);
 
 // AI route.
 app.use('/api/ai/*', aiRateLimitMiddleware);

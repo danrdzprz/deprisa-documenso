@@ -46,6 +46,18 @@ export default defineConfig({
         },
       ],
     }),
+    {
+      name: 'signature-session-websocket',
+      configureServer: (server) => {
+        server.httpServer?.once('listening', async () => {
+          const { attachSignatureSessionSocket } = await server.ssrLoadModule(
+            '/server/api/signature-session/signature-session.socket.ts',
+          );
+
+          attachSignatureSessionSocket(server.httpServer);
+        });
+      },
+    },
     reactRouter(),
     macrosPlugin(),
     lingui(),

@@ -2,7 +2,7 @@ import { DocumentSignatureType } from '@documenso/lib/constants/document';
 import { isBase64Image } from '@documenso/lib/constants/signatures';
 
 import { Trans } from '@lingui/react/macro';
-import { KeyboardIcon, UploadCloudIcon } from 'lucide-react';
+import { KeyboardIcon, SmartphoneIcon, UploadCloudIcon } from 'lucide-react';
 import type { HTMLAttributes } from 'react';
 import { useState } from 'react';
 import { match } from 'ts-pattern';
@@ -10,6 +10,7 @@ import { match } from 'ts-pattern';
 import { SignatureIcon } from '../../icons/signature';
 import { cn } from '../../lib/utils';
 import { SignaturePadDraw } from './signature-pad-draw';
+import { SignaturePadMobile } from './signature-pad-mobile';
 import { SignaturePadType } from './signature-pad-type';
 import { SignaturePadUpload } from './signature-pad-upload';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './signature-tabs';
@@ -45,6 +46,7 @@ export const SignaturePad = ({
   const [imageSignature, setImageSignature] = useState(isBase64Image(value) ? value : '');
   const [drawSignature, setDrawSignature] = useState(isBase64Image(value) ? value : '');
   const [typedSignature, setTypedSignature] = useState(isBase64Image(value) ? '' : value);
+  const [mobileSignature, setMobileSignature] = useState('');
 
   /**
    * This is cooked.
@@ -53,7 +55,7 @@ export const SignaturePad = ({
    * the first enabled tab.
    */
   const [tab, setTab] = useState(
-    ((): 'draw' | 'text' | 'image' => {
+    ((): 'draw' | 'text' | 'image' | 'mobile' => {
       // First passthrough to check to see if there's a signature for a given tab.
       if (drawSignatureEnabled && drawSignature) {
         return 'draw';
@@ -111,7 +113,17 @@ export const SignaturePad = ({
     });
   };
 
-  const onTabChange = (value: 'draw' | 'text' | 'image') => {
+  const onMobileSignatureChange = (value: string) => {
+    setMobileSignature(value);
+
+    // A signature drawn on a touch device is a drawn signature.
+    onChange?.({
+      type: DocumentSignatureType.DRAW,
+      value,
+    });
+  };
+
+  const onTabChange = (value: 'draw' | 'text' | 'image' | 'mobile') => {
     if (disabled) {
       return;
     }
@@ -128,6 +140,9 @@ export const SignaturePad = ({
       .with('image', () => {
         onImageSignatureChange(imageSignature);
       })
+      .with('mobile', () => {
+        onMobileSignatureChange(mobileSignature);
+      })
       .exhaustive();
   };
 
@@ -142,7 +157,7 @@ export const SignaturePad = ({
         'pointer-events-none': disabled,
       })}
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      onValueChange={(value) => onTabChange(value as 'draw' | 'text' | 'image')}
+      onValueChange={(value) => onTabChange(value as 'draw' | 'text' | 'image' | 'mobile')}
     >
       <TabsList>
         {drawSignatureEnabled && (
@@ -163,6 +178,13 @@ export const SignaturePad = ({
           <TabsTrigger value="image">
             <UploadCloudIcon className="mr-2 size-4" />
             <Trans context="Upload signature">Upload</Trans>
+          </TabsTrigger>
+        )}
+
+        {drawSignatureEnabled && (
+          <TabsTrigger value="mobile">
+            <SmartphoneIcon className="mr-2 size-4" />
+            <Trans context="Draw signature on a mobile device">Mobile</Trans>
           </TabsTrigger>
         )}
       </TabsList>
@@ -188,6 +210,13 @@ export const SignaturePad = ({
         })}
       >
         <SignaturePadUpload value={imageSignature} onChange={onImageSignatureChange} />
+      </TabsContent>
+
+      <TabsContent
+        value="mobile"
+        className="relative flex aspect-signature-pad items-center justify-center rounded-md border border-border bg-muted/25 text-center"
+      >
+        <SignaturePadMobile value={mobileSignature} onChange={onMobileSignatureChange} />
       </TabsContent>
     </Tabs>
   );
