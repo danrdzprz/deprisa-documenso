@@ -4,6 +4,7 @@ import type { Transporter } from 'nodemailer';
 import { createTransport } from 'nodemailer';
 
 import { MailChannelsTransport } from './transports/mailchannels';
+import { MsGraphTransport } from './transports/msgraph';
 
 /**
  * Creates a Nodemailer transport object for sending emails.
@@ -20,6 +21,11 @@ import { MailChannelsTransport } from './transports/mailchannels';
  *   - `NEXT_PRIVATE_MAILCHANNELS_ENDPOINT`: Endpoint for MailChannels (optional)
  * - **resend**: Uses ResendTransport, requiring:
  *   - `NEXT_PRIVATE_RESEND_API_KEY`: API key for Resend
+ * - **msgraph**: Sends via Microsoft Graph over HTTPS (no SMTP port needed), requiring:
+ *   - `NEXT_PRIVATE_OAUTH_CLIENT_ID`, `NEXT_PRIVATE_OAUTH_CLIENT_SECRET`, `NEXT_PRIVATE_OAUTH_TENANT_ID`
+ *   - `NEXT_PRIVATE_OAUTH_REFRESH_TOKEN` (optional): delegated flow, sends as the token's user.
+ *     If unset, app-only client credentials are used and mail is sent as the from address
+ *     (requires the `Mail.Send` application permission).
  * - **smtp-api**: Uses a custom SMTP API configuration, requiring:
  *   - `NEXT_PRIVATE_SMTP_HOST`: The SMTP server host
  *   - `NEXT_PRIVATE_SMTP_APIKEY`: The API key for SMTP authentication
@@ -33,6 +39,9 @@ import { MailChannelsTransport } from './transports/mailchannels';
  *   - `NEXT_PRIVATE_SMTP_PASSWORD`: The password for SMTP authentication
  *   - `NEXT_PRIVATE_SMTP_SERVICE`: The SMTP service provider (e.g., "gmail"). This option is used
  *     when integrating with well-known services (like Gmail), enabling simplified configuration.
+ *   - When `NEXT_PRIVATE_SMTP_HOST` is `smtp.office365.com` and `NEXT_PRIVATE_OAUTH_CLIENT_ID`,
+ *     `NEXT_PRIVATE_OAUTH_CLIENT_SECRET`, `NEXT_PRIVATE_OAUTH_TENANT_ID` and
+ *     `NEXT_PRIVATE_OAUTH_REFRESH_TOKEN` are all set, OAuth2 is used instead of the password.
  *
  * Example Usage:
  * ```env
@@ -74,6 +83,27 @@ const getTransport = (): Transporter => {
     );
   }
 
+  if (transport === 'msgraph') {
+    const clientId = env('NEXT_PRIVATE_OAUTH_CLIENT_ID')?.trim();
+    const clientSecret = env('NEXT_PRIVATE_OAUTH_CLIENT_SECRET')?.trim();
+    const tenantId = env('NEXT_PRIVATE_OAUTH_TENANT_ID')?.trim();
+
+    if (!clientId || !clientSecret || !tenantId) {
+      throw new Error(
+        'Microsoft Graph transport requires NEXT_PRIVATE_OAUTH_CLIENT_ID, NEXT_PRIVATE_OAUTH_CLIENT_SECRET and NEXT_PRIVATE_OAUTH_TENANT_ID',
+      );
+    }
+
+    return createTransport(
+      MsGraphTransport.makeTransport({
+        clientId,
+        clientSecret,
+        tenantId,
+        refreshToken: env('NEXT_PRIVATE_OAUTH_REFRESH_TOKEN')?.trim() || undefined,
+      }),
+    );
+  }
+
   if (transport === 'smtp-api') {
     if (!env('NEXT_PRIVATE_SMTP_HOST') || !env('NEXT_PRIVATE_SMTP_APIKEY')) {
       throw new Error('SMTP API transport requires NEXT_PRIVATE_SMTP_HOST and NEXT_PRIVATE_SMTP_APIKEY');
@@ -86,6 +116,36 @@ const getTransport = (): Transporter => {
       auth: {
         user: env('NEXT_PRIVATE_SMTP_APIKEY_USER') ?? 'apikey',
         pass: env('NEXT_PRIVATE_SMTP_APIKEY') ?? '',
+      },
+    });
+  }
+
+  const clientId = env('NEXT_PRIVATE_OAUTH_CLIENT_ID');
+  const clientSecret = env('NEXT_PRIVATE_OAUTH_CLIENT_SECRET')?.trim();
+  const tenantId = env('NEXT_PRIVATE_OAUTH_TENANT_ID')?.trim();
+  const refreshToken = env('NEXT_PRIVATE_OAUTH_REFRESH_TOKEN')?.trim();
+  const smtpUser = env('NEXT_PRIVATE_SMTP_USERNAME');
+
+  if (
+    env('NEXT_PRIVATE_SMTP_HOST') === 'smtp.office365.com' &&
+    clientId &&
+    clientSecret &&
+    tenantId &&
+    refreshToken &&
+    smtpUser
+  ) {
+    console.log('Using Office 365 OAuth2 transport');
+    return createTransport({
+      host: 'smtp.office365.com',
+      port: Number(env('NEXT_PRIVATE_SMTP_PORT')) || 587,
+      secure: false,
+      auth: {
+        type: 'OAuth2',
+        user: smtpUser,
+        clientId,
+        clientSecret,
+        refreshToken,
+        accessUrl: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
       },
     });
   }
