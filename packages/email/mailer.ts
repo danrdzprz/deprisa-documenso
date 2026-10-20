@@ -60,7 +60,7 @@ import { MsGraphTransport } from './transports/msgraph';
  * - `NEXT_PRIVATE_SMTP_SERVICE` is optional and used specifically for well-known services like Gmail.
  */
 const getTransport = (): Transporter => {
-  const transport = env('NEXT_PRIVATE_SMTP_TRANSPORT') ?? 'smtp-auth';
+  const transport: string = env('NEXT_PRIVATE_SMTP_TRANSPORT') ?? 'smtp-auth';
 
   if (transport === 'mailchannels') {
     return createTransport(
