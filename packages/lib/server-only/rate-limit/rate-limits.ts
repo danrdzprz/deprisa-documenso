@@ -132,6 +132,12 @@ export const aiRateLimit = createRateLimit({
   window: '1m',
 });
 
+export const signatureSessionRateLimit = createRateLimit({
+  action: 'api.signature-session',
+  max: 120,
+  window: '1m',
+});
+
 export const fileUploadRateLimit = createRateLimit({
   action: 'api.file-upload',
   max: 20,
