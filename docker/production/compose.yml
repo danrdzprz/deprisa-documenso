@@ -1,25 +1,29 @@
 name: documenso-production
 
 services:
-  database:
-    image: postgres:15
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:?err}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?err}
-      - POSTGRES_DB=${POSTGRES_DB:?err}
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - database:/var/lib/postgresql/data
+  # database:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_USER=${POSTGRES_USER:?err}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?err}
+  #     - POSTGRES_DB=${POSTGRES_DB:?err}
+  #   healthcheck:
+  #     test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   volumes:
+  #     - database:/var/lib/postgresql/data
 
   documenso:
-    image: documenso/documenso:latest
-    depends_on:
-      database:
-        condition: service_healthy
+    # Custom image built locally from this fork (see docker/Dockerfile).
+    # Build:  docker build -f docker/Dockerfile -t danrdzprz/documenso:latest .
+    # Push:   docker push danrdzprz/documenso:latest
+    # image: documenso/documenso:latest
+    image: ${DOCKER_IMAGE:-danrdzprz/documenso:latest}
+    # depends_on:
+    #   database:
+    #     condition: service_healthy
     environment:
       - PORT=${PORT:-3000}
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:?err}
@@ -73,10 +77,14 @@ services:
       - NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH=${NEXT_PRIVATE_SIGNING_LOCAL_FILE_PATH:-/opt/documenso/cert.p12}
       - NEXT_PRIVATE_SIGNING_PASSPHRASE=${NEXT_PRIVATE_SIGNING_PASSPHRASE}
       - NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS=${NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS}
+      - NEXT_PRIVATE_OAUTH_CLIENT_ID=${NEXT_PRIVATE_OAUTH_CLIENT_ID}
+      - NEXT_PRIVATE_OAUTH_CLIENT_SECRET=${NEXT_PRIVATE_OAUTH_CLIENT_SECRET}
+      - NEXT_PRIVATE_OAUTH_TENANT_ID=${NEXT_PRIVATE_OAUTH_TENANT_ID}
+      - NEXT_PRIVATE_OAUTH_REFRESH_TOKEN=${NEXT_PRIVATE_OAUTH_REFRESH_TOKEN}
     ports:
       - ${PORT:-3000}:${PORT:-3000}
     volumes:
       - /opt/documenso/cert.p12:/opt/documenso/cert.p12:ro
 
-volumes:
-  database:
+# volumes:
+#   database:
