@@ -177,6 +177,15 @@ services:
         sync: false
       - key: NEXT_PUBLIC_USE_INTERNAL_URL_BROWSERLESS
         sync: false
+      # OAuth environment variables for Microsoft authentication
+      - key: NEXT_PRIVATE_OAUTH_CLIENT_ID
+        sync: false
+      - key: NEXT_PRIVATE_OAUTH_CLIENT_SECRET
+        sync: false
+      - key: NEXT_PRIVATE_OAUTH_TENANT_ID
+        sync: false
+      - key: NEXT_PRIVATE_OAUTH_REFRESH_TOKEN
+        sync: false
 
 databases:
   - name: documenso-db
